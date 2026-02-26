@@ -1,41 +1,22 @@
-import { z } from 'zod';
-import { insertMatchSchema, matches } from './schema';
+import type { Express } from "express";
+import type { Server } from "http";
+import { storage } from "./storage";
+import { api } from "@shared/routes";
 
-export const errorSchemas = {
-  validation: z.object({
-    message: z.string(),
-    field: z.string().optional(),
-  }),
-  notFound: z.object({
-    message: z.string(),
-  }),
-  internal: z.object({
-    message: z.string(),
-  }),
-};
+export async function registerRoutes(
+  httpServer: Server,
+  app: Express
+): Promise<Server> {
+  
+  app.get(api.matches.list.path, async (req, res) => {
+    try {
+      const allMatches = await storage.getMatches();
+      res.json(allMatches);
+    } catch (err) {
+      console.error("Error fetching matches:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
-export const api = {
-  matches: {
-    list: {
-      method: 'GET' as const,
-      path: '/api/matches' as const,
-      responses: {
-        200: z.array(z.custom<typeof matches.$inferSelect>()),
-      },
-    },
-  },
-};
-
-export function buildUrl(path: string, params?: Record<string, string | number>): string {
-  let url = path;
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (url.includes(`:${key}`)) {
-        url = url.replace(`:${key}`, String(value));
-      }
-    });
-  }
-  return url;
+  return httpServer;
 }
-
-export type MatchesListResponse = z.infer<typeof api.matches.list.responses[200]>;
